@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Tibiazinho MMO - Edição EXPANDIDA</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0e0c0a;color:#e5dec9;font:13px 'Segoe UI',Tahoma,monospace;display:flex;justify-content:center;align-items:center;min-height:100vh;overflow-x:hidden}
+#app{display:flex;gap:8px;max-width:1160px;width:100%;padding:8px}
+#main-col{flex:1;display:flex;flex-direction:column;min-width:0}
+#canvas-wrap{position:relative;border:3px solid #5c4732;background:#000;box-shadow:0 0 20px #000}
+canvas{width:100%;display:block;image-rendering:pixelated;cursor:crosshair}
+#side-col{width:270px;background:#1f1913;border:3px solid #5c4732;display:flex;flex-direction:column;gap:8px;padding:8px}
+.panel{background:#16110d;border:1px solid #423324;padding:8px;border-radius:3px}
+.panel h3{margin:0 0 6px;font-size:12px;text-transform:uppercase;color:#d4af37;border-bottom:1px solid #36291d;padding-bottom:4px;display:flex;justify-content:space-between}
+.bars{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.bar-box{font-size:11px}
+.bar{width:100%;height:14px;background:#261e17;border:1px solid #000;position:relative;margin-top:2px}
+.bar i{display:block;height:100%;transition:width .15s}
+.bar span{position:absolute;inset:0;text-align:center;line-height:13px;font-size:10px;font-weight:bold;text-shadow:1px 1px 0 #000}
+#hb{background:linear-gradient(#d33,#911)}
+#mb{background:linear-gradient(#37d,#149)}
+#xb{background:linear-gradient(#da2,#960)}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;margin-top:6px;color:#cbbba0}
+.equip-slots{display:flex;gap:6px;justify-content:center}
+.slot{width:46px;height:46px;background:#261e17;border:2px solid #4d3c2b;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:18px;user-select:none}
+.slot:hover{border-color:#d4af37;background:#33281e}
+.slot small{font-size:9px;color:#9e8d75;position:absolute;bottom:1px}
+.slot .qty{position:absolute;top:1px;right:3px;font-size:10px;color:#fff;font-weight:bold;text-shadow:1px 1px 0 #000}
+.inv-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.spells{display:flex;gap:4px}
+.spell-btn{flex:1;background:#2b2118;border:1px solid #6b533b;color:#f0e6d2;padding:5px 2px;font-size:11px;cursor:pointer;text-align:center}
+.spell-btn:hover{background:#3d2f22;border-color:#d4af37}
+#chat-box{margin-top:6px;display:flex;flex-direction:column;background:#16110d;border:2px solid #423324}
+#log{height:105px;overflow-y:auto;padding:6px;font-size:12px;line-height:1.35}
+#ci{width:100%;background:#0c0907;color:#fff;border:none;border-top:1px solid #423324;padding:7px;font:inherit;outline:none}
+/* Modais */
+.modal{position:absolute;inset:0;background:rgba(10,8,6,.88);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:10;padding:16px}
+.modal.open{display:flex}
+.modal-card{background:#1f1913;border:2px solid #8a6d43;padding:14px;width:100%;max-width:420px;box-shadow:0 10px 30px #000}
+.modal-card h2{margin:0 0 10px;color:#d4af37;font-size:16px;display:flex;justify-content:space-between;align-items:center}
+.close-btn{background:#522;border:1px solid #944;color:#fff;cursor:pointer;padding:2px 8px;font-weight:bold}
+.shop-list{display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto}
+.shop-row{display:flex;justify-content:space-between;align-items:center;background:#14100c;padding:6px 8px;border:1px solid #382b1e}
+.shop-row button{background:#2d4a22;border:1px solid #568c42;color:#fff;padding:4px 8px;cursor:pointer;font-size:11px}
+.shop-row button.sell{background:#5c4318;border-color:#a67b2e}
+.shop-row button:disabled{opacity:.4;cursor:not-allowed}
+#login{z-index:20}
+#login input{width:100%;padding:8px;background:#110d0a;border:1px solid #6b533b;color:#fff;margin-bottom:10px;font:inherit}
+#login button#go{width:100%;padding:10px;background:#2f5922;border:1px solid #599e43;color:#fff;font-weight:bold;cursor:pointer;font-size:14px}
+.sw{width:28px;height:28px;border:2px solid #333;cursor:pointer;display:inline-block;margin:0 4px 10px}
+.sw.s{border-color:#ffd700;transform:scale(1.1)}
+#pad{display:none;position:fixed;left:12px;bottom:140px;grid:repeat(3,46px)/repeat(3,46px);gap:4px;z-index:8}
+#pad b{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;user-select:none;touch-action:none}
+@media(max-width:820px){#app{flex-direction:column}#side-col{width:100%}#pad{display:grid}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="main-col">
+    <div id="canvas-wrap">
+      <canvas id="c" width="544" height="384"></canvas>
+      
+      <!-- Modal Login -->
+      <div id="login" class="modal open">
+        <div class="modal-card" style="text-align:center">
+          <h2 style="justify-content:center">⚔ TIBIAZINHO MMO</h2>
+          <p style="font-size:12px;color:#b8a990;margin-top:0">Explore 3 cidades, navegue de barco e cace em grupo!</p>
+          <input id="ni" maxlength="14" placeholder="Nome do seu herói">
+          <div id="sw"></div>
+          <button id="go">ENTRAR NO MUNDO</button>
+          <div id="st" style="margin-top:8px;font-size:11px;color:#8cf"></div>
+        </div>
+      </div>
+
+      <!-- Modal Loja / Barco -->
+      <div id="npc-modal" class="modal">
+        <div class="modal-card">
+          <h2><span id="npc-title">Comércio</span><button class="close-btn" onclick="closeModal()">X</button></h2>
+          <p id="npc-desc" style="font-size:12px;color:#cbbba0;margin:0 0 10px"></p>
+          <div id="npc-body" class="shop-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="chat-box">
+      <div id="log"></div>
+      <input id="ci" maxlength="100" placeholder="Pressione Enter para falar no chat global...">
+    </div>
+  </div>
+
+  <div id="side-col">
+    <div class="panel">
+      <h3><span id="p-name">Aventureiro</span><span id="p-city" style="color:#8cf">Thais</span></h3>
+      <div class="bars">
+        <div class="bar-box">Vida (HP)<div class="bar"><i id="hb"></i><span id="htxt">100/100</span></div></div>
+        <div class="bar-box">Mana (MP)<div class="bar"><i id="mb"></i><span id="mtxt">50/50</span></div></div>
+      </div>
+      <div class="bar-box" style="margin-top:6px">Experiência (Nv <b id="plvl">1</b>)<div class="bar"><i id="xb"></i><span id="xtxt">0%</span></div></div>
+      <div class="stats-grid">
+        <div>⚔ Ataque: <b id="satk">6</b></div>
+        <div>🛡 Defesa: <b id="sdef">1</b></div>
+        <div>💰 Ouro: <b id="sgold" style="color:#ffd700">25</b></div>
+        <div>🌐 Online: <b id="sonline">1</b></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Equipamento</h3>
+      <div class="equip-slots">
+        <div class="slot" id="eq-weapon" onclick="unequip('weapon')" title="Clique para desequipar">👊<small>Arma</small></div>
+        <div class="slot" id="eq-armor" onclick="unequip('armor')" title="Clique para desequipar">👕<small>Armadura</small></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Mochila <small style="color:#9e8d75">(Clique p/ usar)</small></h3>
+      <div class="inv-grid" id="inv-grid"></div>
+    </div>
+
+    <div class="panel">
+      <h3>Magias & Ações</h3>
+      <div class="spells">
+        <button class="spell-btn" onclick="castHeal()">[1] Exura<br><small>15 MP · Cura</small></button>
+        <button class="spell-btn" onclick="castWhirl()">[2] Exori<br><small>20 MP · Área</small></button>
+        <button class="spell-btn" onclick="interactNearby()">[E] Falar<br><small>NPC / Barco</small></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="pad">
+  <b data-k="arrowup" style="grid-area:1/2">▲</b>
+  <b data-k="arrowleft" style="grid-area:2/1">◀</b>
+  <b data-k="arrowright" style="grid-area:2/3">▶</b>
+  <b data-k="arrowdown" style="grid-area:3/2">▼</b>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+// ===== FIREBASE CONFIG =====
+const FB = {
+  apiKey: "AIzaSyBtC0IanYDj9cx4JaoZV9pzV86WSdOSHlQ",
+  authDomain: "mmorpg-a37e3.firebaseapp.com",
+  databaseURL: "https://mmorpg-a37e3-default-rtdb.firebaseio.com",
+  projectId: "mmorpg-a37e3",
+  storageBucket: "mmorpg-a37e3.firebasestorage.app",
+  messagingSenderId: "230052295995",
+  appId: "1:230052295995:web:2334e7a4aeff790452331e",
+  measurementId: "G-V7TFFPJ60R"
+};
+
+const T = 32, W = 160, H = 160, VW = 17, VH = 12;
+const online = !!FB.databaseURL && typeof firebase !== "undefined";
+const c = document.getElementById("c"), x = c.getContext("2d"), $ = i => document.getElementById(i);
+x.imageSmoothingEnabled = false;
+
+// ===== ITENS & LOJA =====
+const ITEMS = {
+  pot_hp:   { n: "Poção de Vida", ico: "🧪", type: "use", heal: 45, price: 15, desc: "Recupera 45 HP" },
+  pot_mp:   { n: "Poção de Mana", ico: "💧", type: "use", mana: 35, price: 18, desc: "Recupera 35 MP" },
+  sabre:    { n: "Sabre de Ferro", ico: "🗡", type: "weapon", atk: 5, price: 40, col: "#ccc", desc: "+5 Ataque" },
+  longsw:   { n: "Espada Longa", ico: "⚔", type: "weapon", atk: 11, price: 130, col: "#8cf", desc: "+11 Ataque" },
+  runesw:   { n: "Lâmina Rúnica", ico: "🔥", type: "weapon", atk: 20, price: 350, col: "#f92", desc: "+20 Ataque" },
+  leather:  { n: "Armadura Couro", ico: "🧥", type: "armor", def: 3, price: 35, col: "#853", desc: "+3 Defesa" },
+  chain:    { n: "Cota de Malha", ico: "🦺", type: "armor", def: 7, price: 120, col: "#9ab", desc: "+7 Defesa" },
+  plate:    { n: "Armadura Placas", ico: "🛡", type: "armor", def: 14, price: 320, col: "#ed5", desc: "+14 Defesa" },
+  cheese:   { n: "Queijo", ico: "🧀", type: "loot", price: 5, desc: "Item de venda" },
+  fang:     { n: "Presa Venenosa", ico: "🦷", type: "loot", price: 14, desc: "Item de venda" },
+  pelt:     { n: "Pele de Lobo", ico: "🐺", type: "loot", price: 24, desc: "Item de venda" },
+  orc_axe:  { n: "Machado Orc", ico: "🪓", type: "loot", price: 32, desc: "Item de venda" }
+};
+
+// ===== CIDADES & PORTOS =====
+// Thais: Centro (80,80) | Venore: Leste (134,82) | Frosthold: Ilha Norte (80,22)
+const CITIES = {
+  thais:     { name: "Thais", x: 80, y: 80, portX: 80, portY: 91, dockX: 80, dockY: 92, cost: 10, desc: "Capital central, segura e movimentada." },
+  venore:    { name: "Venore", x: 134, y: 82, portX: 134, portY: 91, dockX: 134, dockY: 92, cost: 15, desc: "Cidade pantanosa. Mercadores pagam +20% em loots!" },
+  frosthold: { name: "Frosthold", x: 80, y: 22, portX: 80, portY: 31, dockX: 80, dockY: 32, cost: 25, desc: "Ilha gelada ao norte com monstros fortes e armas raras." }
+};
+
+// ===== GERAÇÃO DETERMINÍSTICA DO MAPA (IGUAL PARA TODOS) =====
+function rnd(a, b, s) {
+  let h = Math.imul(a * 374761393 + b * 668265263 + s * 1274126177, 1103515245);
+  h ^= h >>> 13; h = Math.imul(h, 1274126177);
+  return ((h ^ h >>> 16) >>> 0) / 4294967296;
+}
+function vn(a, b, s, f) {
+  const xi = Math.floor(a / f), yi = Math.floor(b / f), xf = a / f - xi, yf = b / f - yi, sm = t => t * t * (3 - 2 * t);
+  const p = rnd(xi, yi, s), q = rnd(xi + 1, yi, s), r = rnd(xi, yi + 1, s), w = rnd(xi + 1, yi + 1, s), u = sm(xf), v = sm(yf);
+  return p + (q - p) * u + (r - p) * v + (p - q - r + w) * u * v;
+}
+
+// Tiles: 0:Água, 1:Areia, 2:Grama, 3:Árvore, 4:Pedra, 5:Piso Cidade, 6:Parede, 7:Madeira/Píer, 8:Neve, 9:Pinheiro Nevado, 10:Pântano
+const map = [];
+for (let y = 0; y < H; y++) {
+  map[y] = [];
+  for (let a = 0; a < W; a++) {
+    // Ilha Norte (Frosthold)
+    const distNorth = Math.hypot((a - 80) / 24, (y - 22) / 14);
+    if (y < 44) {
+      let e = vn(a, y, 7, 10) * 0.6 + vn(a, y, 8, 4) * 0.4 - distNorth * 0.85 + 0.55;
+      map[y][a] = e < 0.25 ? 0 : e < 0.31 ? 1 : (vn(a, y, 9, 5) > 0.65 ? 9 : 8);
+      continue;
+    }
+    // Continente Principal
+    const d = Math.max(Math.abs(a - 98) / 56, Math.abs(y - 84) / 42);
+    let e = vn(a, y, 1, 18) * 0.7 + vn(a, y, 2, 6) * 0.3 - d * d * 0.55 + 0.22;
+    if (e < 0.26) map[y][a] = 0;
+    else if (e < 0.32) map[y][a] = 1;
+    else if (a > 112) { // Bioma Pântano (Leste)
+      map[y][a] = (vn(a, y, 4, 6) > 0.62 && rnd(a, y, 5) > 0.55) ? 3 : 10;
+    } else {
+      map[y][a] = (vn(a, y, 3, 9) > 0.72 && e > 0.48) ? 4 : (vn(a, y, 4, 7) > 0.58 && rnd(a, y, 5) > 0.62) ? 3 : 2;
+    }
+  }
+}
+
+function buildRect(x0, y0, x1, y1, floor, wall, doorSide = "S") {
+  for (let y = y0; y <= y1; y++) {
+    for (let a = x0; a <= x1; a++) {
+      const edge = (a === x0 || a === x1 || y === y0 || y === y1);
+      map[y][a] = (edge && wall !== null) ? wall : floor;
+    }
+  }
+  if (wall !== null) {
+    if (doorSide === "S") map[y1][(x0 + x1) >> 1] = floor;
+    if (doorSide === "N") map[y0][(x0 + x1) >> 1] = floor;
+    if (doorSide === "E") map[(y0 + y1) >> 1][x1] = floor;
+    if (doorSide === "W") map[(y0 + y1) >> 1][x0] = floor;
+  }
+}
+
+// Construir Thais (80,80)
+buildRect(71, 71, 89, 89, 5, 6, "S");
+map[71][80] = 5; map[80][71] = 5; map[80][89] = 5; // 4 portões
+buildRect(73, 73, 78, 77, 7, 6, "S"); // Loja Thais
+buildRect(82, 73, 87, 77, 7, 6, "S"); // Taverna
+for (let y = 90; y <= 93; y++) { map[y][79] = 7; map[y][80] = 7; map[y][81] = 7; } // Píer Thais
+for (let y = 94; y <= 98; y++) for (let a = 78; a <= 82; a++) map[y][a] = 0; // Água profunda porto
+
+// Construir Venore (134,82)
+buildRect(126, 75, 142, 89, 7, 6, "S");
+map[82][126] = 7; map[75][134] = 7;
+buildRect(128, 77, 132, 81, 5, 6, "S"); // Loja Venore
+for (let y = 90; y <= 93; y++) { map[y][133] = 7; map[y][134] = 7; map[y][135] = 7; } // Píer Venore
+for (let y = 94; y <= 98; y++) for (let a = 132; a <= 136; a++) map[y][a] = 0;
+
+// Construir Frosthold (80,22)
+buildRect(73, 16, 87, 28, 5, 6, "S");
+map[22][73] = 5; map[22][87] = 5;
+buildRect(75, 18, 79, 21, 7, 6, "S"); // Loja Frosthold
+for (let y = 29; y <= 33; y++) { map[y][79] = 7; map[y][80] = 7; map[y][81] = 7; } // Píer Frosthold
+for (let y = 34; y <= 38; y++) for (let a = 78; a <= 82; a++) map[y][a] = 0;
+
+// Estrada de pedra ligando Thais a Venore
+for (let a = 90; a <= 125; a++) { map[81][a] = 5; map[82][a] = 5; }
+
+const solid = t => t === 0 || t === 3 || t === 4 || t === 6 || t === 9;
+const safeT = t => t === 5 || t === 7;
+
+// ===== NPCs FIXOS =====
+const NPCS = [
+  { id: "merc_thais", name: "Sam (Mercador)", role: "shop", city: "thais", x: 75, y: 75, col: "#d94", stock: ["pot_hp", "pot_mp", "sabre", "leather"] },
+  { id: "boat_thais", name: "Cap. Bluebear", role: "boat", city: "thais", x: 80, y: 90, col: "#26b" },
+  { id: "merc_venore", name: "Yanni (Mercador)", role: "shop", city: "venore", x: 130, y: 79, col: "#4a6", bonus: 1.2, stock: ["pot_hp", "pot_mp", "longsw", "chain"] },
+  { id: "boat_venore", name: "Cap. Fearless", role: "boat", city: "venore", x: 134, y: 89, col: "#26b" },
+  { id: "merc_frost", name: "Sven (Ferreiro)", role: "shop", city: "frosthold", x: 77, y: 19, col: "#8ce", stock: ["pot_hp", "pot_mp", "runesw", "plate"] },
+  { id: "boat_frost", name: "Cap. Jack", role: "boat", city: "frosthold", x: 80, y: 29, col: "#26b" }
+];
+
+// ===== TEXTURAS PROCEDURAIS APRIMORADAS =====
+function mk(f) { const e = document.createElement("canvas"); e.width = e.height = T; f(e.getContext("2d")); return e; }
+function sp(g, cols, n, w, h) {
+  for (let i = 0; i < n; i++) {
+    g.fillStyle = cols[i % cols.length];
+    g.fillRect((Math.random() * (T - w)) | 0, (Math.random() * (T - h)) | 0, w, h);
+  }
+}
+const base = (g, col) => { g.fillStyle = col; g.fillRect(0, 0, T, T); };
+const tiles = Array.from({ length: 11 }, () => []);
+
+for (let v = 0; v < 3; v++) {
+  // 0: Água animada
+  tiles[0][v] = mk(g => { base(g, "#1d569e"); sp(g, ["#3b7dd1", "#16437d", "#74b3ff"], 10, 7, 2); });
+  // 1: Areia
+  tiles[1][v] = mk(g => { base(g, "#e3cc88"); sp(g, ["#cfb469", "#f2df9e"], 16, 2, 2); });
+  // 2: Grama rica
+  tiles[2][v] = mk(g => { base(g, "#39852b"); sp(g, ["#2b6b20", "#4da33b", "#65ba4e"], 22, 2, 3); });
+  // 3: Árvore com sombra
+  tiles[3][v] = mk(g => {
+    base(g, "#39852b"); sp(g, ["#2b6b20"], 10, 2, 2);
+    g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(8, 25, 18, 5);
+    g.fillStyle = "#5e3a1c"; g.fillRect(13, 18, 6, 11);
+    g.fillStyle = "#194f15"; g.fillRect(5, 5, 22, 16); g.fillRect(3, 9, 26, 10);
+    g.fillStyle = "#2b7a24"; g.fillRect(7, 4, 18, 12);
+    g.fillStyle = "#419c38"; g.fillRect(9, 5, 10, 6);
+  });
+  // 4: Rocha/Montanha
+  tiles[4][v] = mk(g => {
+    base(g, "#6e6e6e"); sp(g, ["#525252", "#8f8f8f"], 9, 7, 5);
+    g.fillStyle = "#3d3d3d"; g.fillRect(0, 27, T, 5);
+    g.fillStyle = "#a3a3a3"; g.fillRect(3, 3, 12, 3);
+  });
+  // 5: Calçamento Cidade
+  tiles[5][v] = mk(g => {
+    base(g, "#9e988e"); g.fillStyle = "#7d776e";
+    for (let i = 0; i < T; i += 8) { g.fillRect(i, 0, 1, T); g.fillRect(0, i, T, 1); }
+    sp(g, ["#b5afa5", "#8a847a"], 6, 4, 4);
+  });
+  // 6: Muralha Tijolos
+  tiles[6][v] = mk(g => {
+    base(g, "#7d3527"); g.fillStyle = "#4a1b12";
+    for (let r = 0; r < 4; r++) {
+      g.fillRect(0, r * 8, T, 1);
+      for (let i = (r % 2) * 8; i < T; i += 16) g.fillRect(i, r * 8, 1, 8);
+    }
+    g.fillStyle = "#9c4838"; g.fillRect(2, 2, 12, 2); g.fillRect(18, 10, 12, 2);
+  });
+  // 7: Madeira / Píer
+  tiles[7][v] = mk(g => {
+    base(g, "#855529"); g.fillStyle = "#593616";
+    for (let i = 0; i < T; i += 8) g.fillRect(0, i, T, 1);
+    g.fillStyle = "#3b220c"; g.fillRect(4, 2, 2, 2); g.fillRect(26, 18, 2, 2);
+  });
+  // 8: Neve
+  tiles[8][v] = mk(g => { base(g, "#e8f1f5"); sp(g, ["#cce0eb", "#ffffff"], 14, 3, 2); });
+  // 9: Pinheiro Nevado
+  tiles[9][v] = mk(g => {
+    base(g, "#e8f1f5");
+    g.fillStyle = "rgba(0,0,0,0.25)"; g.fillRect(8, 26, 16, 4);
+    g.fillStyle = "#4d3118"; g.fillRect(14, 20, 4, 9);
+    g.fillStyle = "#1d4a3a"; g.fillRect(6, 14, 20, 7); g.fillRect(9, 8, 14, 7); g.fillRect(12, 3, 8, 6);
+    g.fillStyle = "#fff"; g.fillRect(8, 13, 16, 2); g.fillRect(11, 7, 10, 2);
+  });
+  // 10: Pântano
+  tiles[10][v] = mk(g => { base(g, "#2f4f28"); sp(g, ["#1f381a", "#476e35", "#5a7a32"], 18, 3, 2); });
+}
+
+// ===== ESTADO DO JOGADOR =====
+const P = {
+  x: 80, y: 83, rx: 80, ry: 83, dir: 2,
+  hp: 100, maxHp: 100, mp: 50, maxMp: 50,
+  xp: 0, lvl: 1, gold: 30, name: "", col: "#c33",
+  tgt: null, cd: 0, rg: 0, swing: 0,
+  eq: { weapon: null, armor: null },
+  inv: [{ id: "pot_hp", q: 2 }]
+};
+
+const getAtk = () => 5 + P.lvl * 2 + (P.eq.weapon ? ITEMS[P.eq.weapon].atk : 0);
+const getDef = () => Math.floor(P.lvl / 2) + (P.eq.armor ? ITEMS[P.eq.armor].def : 0);
+const lvlOf = () => Math.floor(Math.sqrt(P.xp / 45)) + 1;
+
+// ===== TIPOS DE MONSTROS =====
+const MT = [
+  { n: "Rato", hp: 25, d: [2, 4], xp: 10, g: [2, 5], a: 5, loot: "cheese", chance: 0.45 },
+  { n: "Cobra", hp: 55, d: [5, 9], xp: 26, g: [6, 12], a: 6, loot: "fang", chance: 0.4 },
+  { n: "Orc", hp: 95, d: [8, 15], xp: 50, g: [12, 24], a: 7, loot: "orc_axe", chance: 0.35 },
+  { n: "Lobo Polar", hp: 140, d: [13, 22], xp: 85, g: [20, 35], a: 8, loot: "pelt", chance: 0.45 }
+];
+
+// Spawns fixos determinísticos (para que o mundo seja sempre consistente)
+const SPAWNS = [];
+for (let k = 0; SPAWNS.length < 75 && k < 12000; k++) {
+  const a = (rnd(k, 1, 99) * W) | 0;
+  const y = (rnd(k, 2, 99) * H) | 0;
+  const tt = map[y][a];
+  if (solid(tt) || safeT(tt)) continue;
+  // Longe das cidades
+  if (Math.hypot(a - 80, y - 80) < 15 || Math.hypot(a - 134, y - 82) < 14 || Math.hypot(a - 80, y - 22) < 13) continue;
+  let t = 0;
+  if (tt === 8) t = 3; // Lobo na neve
+  else if (tt === 10) t = 1; // Cobra no pântano
+  else t = Math.hypot(a - 80, y - 80) > 28 ? 2 : 0; // Orc longe de Thais, Rato perto
+  SPAWNS.push({ id: "m" + SPAWNS.length, t, sx: a, sy: y });
+}
+
+let mons = {}; // Sincronizado pelo Firebase ou local
+let visMons = {}; // Interpolação visual
+let others = {}, visOthers = {}, fts = [], parts = [];
+let started = false, db = null, isHost = false, ox = 0, oy = 0, boatAnim = 0;
+const myId = "p_" + Math.random().toString(36).slice(2, 9);
+
+function initLocalMons() {
+  SPAWNS.forEach(s => {
+    mons[s.id] = { id: s.id, t: s.t, x: s.sx, y: s.sy, sx: s.sx, sy: s.sy, hp: MT[s.t].hp, dead: 0, cd: 0, mv: Math.random() };
+  });
+}
+initLocalMons();
+
+// ===== EFEITOS VISUAIS & CHAT =====
+function ft(a, y, txt, col) { fts.push({ x: a * T + 16, y: y * T, t: txt, c: col, l: 1.1 }); }
+function spawnParticles(wx, wy, col, n = 8) {
+  for (let i = 0; i < n; i++) {
+    const ang = Math.random() * Math.PI * 2, spd = 20 + Math.random() * 45;
+    parts.push({ x: wx * T + 16, y: wy * T + 16, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, c: col, l: 0.45 });
+  }
+}
+
+const log = $("log"), ci = $("ci");
+function addChat(n, m, col) {
+  const d = document.createElement("div"), b = document.createElement("b");
+  b.style.color = col || "#fc6";
+  b.textContent = n + ": ";
+  d.append(b, m);
+  log.append(d);
+  log.scrollTop = 1e9;
+  while (log.children.length > 70) log.firstChild.remove();
+}
+function send() {
+  const m = ci.value.trim().slice(0, 100);
+  ci.value = "";
+  if (!m) return;
+  if (db) db.ref("chat").push({ n: P.name, m, t: Date.now() });
+  else addChat(P.name, m, "#fff");
+}
+
+// ===== INVENTÁRIO & EQUIPAMENTOS =====
+function addItem(itemId, qty = 1) {
+  const it = ITEMS[itemId];
+  if (!it) return false;
+  if (it.type === "use" || it.type === "loot") {
+    const ex = P.inv.find(s => s.id === itemId);
+    if (ex) { ex.q += qty; renderUI(); return true; }
+  }
+  if (P.inv.length >= 12) { addChat("Sistema", "Mochila cheia!", "#f66"); return false; }
+  P.inv.push({ id: itemId, q: qty });
+  renderUI();
+  return true;
+}
+
+function useSlot(idx) {
+  const slot = P.inv[idx];
+  if (!slot) return;
+  const it = ITEMS[slot.id];
+  if (it.type === "use") {
+    if (it.heal) { P.hp = Math.min(P.maxHp, P.hp + it.heal); ft(P.rx, P.ry, "+" + it.heal, "#4f4"); spawnParticles(P.rx, P.ry, "#4f4", 6); }
+    if (it.mana) { P.mp = Math.min(P.maxMp, P.mp + it.mana); ft(P.rx, P.ry, "+" + it.mana + " MP", "#4af"); }
+    slot.q--;
+    if (slot.q <= 0) P.inv.splice(idx, 1);
+  } else if (it.type === "weapon" || it.type === "armor") {
+    const old = P.eq[it.type];
+    P.eq[it.type] = slot.id;
+    P.inv.splice(idx, 1);
+    if (old) P.inv.push({ id: old, q: 1 });
+    pushPlayer();
+  } else {
+    addChat("Item", it.n + ": " + it.desc + " (Venda em um Mercador)", "#ccc");
+  }
+  renderUI();
+}
+
+function unequip(type) {
+  if (!P.eq[type]) return;
+  if (P.inv.length >= 12) { addChat("Sistema", "Mochila cheia!", "#f66"); return; }
+  P.inv.push({ id: P.eq[type], q: 1 });
+  P.eq[type] = null;
+  pushPlayer();
+  renderUI();
+}
+
+// ===== INTERAÇÃO COM NPCS (LOJA E BARCO) =====
+function interactNearby() {
+  const npc = NPCS.find(n => Math.hypot(n.x - P.x, n.y - P.y) <= 2.2);
+  if (!npc) { addChat("Sistema", "Nenhum NPC ou barco por perto.", "#aaa"); return; }
+  if (npc.role === "shop") openShop(npc);
+  else if (npc.role === "boat") openBoat(npc);
+}
+
+function openShop(npc) {
+  $("npc-title").textContent = "🛒 " + npc.name;
+  $("npc-desc").textContent = npc.bonus ? "Mercador de Venore: paga +20% pelos seus itens!" : "Compre equipamentos e poções ou venda seus loots.";
+  const body = $("npc-body");
+  body.innerHTML = "";
+
+  // Itens à venda
+  npc.stock.forEach(id => {
+    const it = ITEMS[id];
+    const row = document.createElement("div");
+    row.className = "shop-row";
+    row.innerHTML = `<div>${it.ico} <b>${it.n}</b> <small style="color:#aaa">(${it.desc})</small></div>`;
+    const btn = document.createElement("button");
+    btn.textContent = `Comprar (${it.price}g)`;
+    btn.disabled = P.gold < it.price;
+    btn.onclick = () => {
+      if (P.gold >= it.price && addItem(id, 1)) {
+        P.gold -= it.price;
+        openShop(npc);
+        renderUI();
+      }
+    };
+    row.append(btn);
+    body.append(row);
+  });
+
+  // Vender itens da mochila
+  P.inv.forEach((slot, idx) => {
+    const it = ITEMS[slot.id];
+    const sellPrice = Math.max(1, Math.floor(it.price * 0.5 * (npc.bonus || 1)));
+    const row = document.createElement("div");
+    row.className = "shop-row";
+    row.innerHTML = `<div>${it.ico} ${it.n} <b>x${slot.q}</b></div>`;
+    const btn = document.createElement("button");
+    btn.className = "sell";
+    btn.textContent = `Vender 1 (${sellPrice}g)`;
+    btn.onclick = () => {
+      P.gold += sellPrice;
+      slot.q--;
+      if (slot.q <= 0) P.inv.splice(idx, 1);
+      openShop(npc);
+      renderUI();
+    };
+    row.append(btn);
+    body.append(row);
+  });
+
+  $("npc-modal").classList.add("open");
+}
+
+function openBoat(npc) {
+  $("npc-title").textContent = "⛵ " + npc.name + " - Transporte Marítimo";
+  $("npc-desc").textContent = "Escolha seu porto de destino:";
+  const body = $("npc-body");
+  body.innerHTML = "";
+
+  Object.entries(CITIES).forEach(([key, city]) => {
+    if (key === npc.city) return;
+    const row = document.createElement("div");
+    row.className = "shop-row";
+    row.innerHTML = `<div><b>${city.name}</b><br><small style="color:#aaa">${city.desc}</small></div>`;
+    const btn = document.createElement("button");
+    btn.textContent = `Zarpar (${city.cost}g)`;
+    btn.disabled = P.gold < city.cost;
+    btn.onclick = () => {
+      if (P.gold < city.cost) return;
+      P.gold -= city.cost;
+      P.x = P.rx = city.portX;
+      P.y = P.ry = city.portY;
+      P.tgt = null;
+      boatAnim = 1.2;
+      closeModal();
+      pushPlayer();
+      renderUI();
+      addChat("Capitão", `Bem-vindo a ${city.name}, marujo!`, "#8cf");
+    };
+    row.append(btn);
+    body.append(row);
+  });
+
+  $("npc-modal").classList.add("open");
+}
+
+function closeModal() { $("npc-modal").classList.remove("open"); }
+
+// ===== MAGIAS =====
+function castHeal() {
+  if (P.mp < 15 || P.hp >= P.maxHp) return;
+  P.mp -= 15;
+  const val = 28 + P.lvl * 4;
+  P.hp = Math.min(P.maxHp, P.hp + val);
+  ft(P.rx, P.ry, "Exura +" + val, "#5f5");
+  spawnParticles(P.rx, P.ry, "#5f5", 10);
+  renderUI();
+}
+
+function castWhirl() {
+  if (P.mp < 20) return;
+  P.mp -= 20;
+  P.swing = 0.35;
+  spawnParticles(P.rx, P.ry, "#fa2", 16);
+  for (const id in mons) {
+    const m = mons[id];
+    if (!m.dead && Math.max(Math.abs(m.x - P.x), Math.abs(m.y - P.y)) <= 1) {
+      damageMonster(m, Math.floor(getAtk() * 1.25));
+    }
+  }
+  renderUI();
+}
+
+// ===== FIREBASE MULTIPLAYER & SINCRONIZAÇÃO DE MOBS =====
+function pushPlayer() {
+  if (!db) return;
+  db.ref("players/" + myId).set({
+    n: P.name, x: P.x, y: P.y, d: P.dir, c: P.col, l: P.lvl,
+    h: P.hp, m: P.maxHp, w: P.eq.weapon || "", a: P.eq.armor || "", t: Date.now()
+  });
+}
+
+function claimHost() {
+  if (!db) return;
+  const hostRef = db.ref("world/host");
+  hostRef.transaction(curr => {
+    if (!curr || curr.id === myId || Date.now() - curr.ts > 6000) {
+      return { id: myId, ts: Date.now() };
+    }
+    return; // Aborta se já existe um host ativo
+  }, (err, committed) => {
+    if (committed) {
+      isHost = true;
+      hostRef.onDisconnect().remove();
+    } else {
+      isHost = false;
+    }
+  });
+}
+
+function netInit() {
+  try {
+    firebase.initializeApp(FB);
+    db = firebase.database();
+
+    const pRef = db.ref("players/" + myId);
+    pRef.onDisconnect().remove();
+
+    // Escutar jogadores
+    db.ref("players").on("value", s => {
+      const val = s.val() || {};
+      const now = Date.now();
+      others = {};
+      for (const k in val) {
+        if (k !== myId && (!val[k].t || now - val[k].t < 15000)) {
+          others[k] = val[k];
+        }
+      }
+      renderUI();
+    });
+
+    // Escutar Mobs Sincronizados
+    db.ref("world/mobs").on("value", s => {
+      const data = s.val();
+      if (data) {
+        for (const id in data) {
+          if (mons[id]) Object.assign(mons[id], data[id]);
+        }
+      } else if (isHost) {
+        db.ref("world/mobs").set(mons);
+      }
+    });
+
+    // Escutar Chat
+    db.ref("chat").limitToLast(25).on("child_added", s => {
+      const m = s.val();
+      if (m && m.n) addChat(String(m.n).slice(0, 14), String(m.m).slice(0, 100), m.n === P.name ? "#fff" : "#8cf");
+    });
+
+    claimHost();
+    setInterval(() => {
+      pushPlayer();
+      claimHost();
+      if (isHost && db) db.ref("world/host/ts").set(Date.now());
+    }, 2500);
+
+    addEventListener("beforeunload", () => pRef.remove());
+  } catch (e) {
+    db = null;
+    $("st").textContent = "Erro Firebase: rodando offline";
+  }
+}
+
+// Dano Autorizado via Transação (Evita duplicar XP/Ouro ou matar 2x)
+function damageMonster(m, dmg) {
+  if (m.dead) return;
+  P.swing = 0.25;
+  ft(m.x, m.y, "-" + dmg, "#fff");
+  spawnParticles(m.x, m.y, "#e33", 6);
+
+  if (!db) {
+    m.hp -= dmg;
+    if (m.hp <= 0) handleKill(m);
+    return;
+  }
+
+  const mRef = db.ref("world/mobs/" + m.id);
+  mRef.transaction(curr => {
+    if (!curr || curr.dead > 0 || curr.hp <= 0) return;
+    curr.hp -= dmg;
+    if (curr.hp <= 0) {
+      curr.hp = 0;
+      curr.dead = 16; // 16s para respawn
+      curr.killer = myId;
+    }
+    return curr;
+  }, (err, committed, snap) => {
+    if (committed && snap.val().dead > 0 && snap.val().killer === myId) {
+      handleKill(m);
+    }
+  });
+}
+
+function handleKill(m) {
+  const d = MT[m.t];
+  m.dead = 16;
+  P.tgt = null;
+  const goldGain = d.g[0] + ((Math.random() * (d.g[1] - d.g[0] + 1)) | 0);
+  P.xp += d.xp;
+  P.gold += goldGain;
+  ft(m.x, m.y - 0.5, `+${d.xp}XP +${goldGain}G`, "#ffd700");
+
+  if (Math.random() < d.chance && d.loot) {
+    addItem(d.loot, 1);
+    addChat("Loot", `Você encontrou: ${ITEMS[d.loot].n}!`, "#fd6");
+  }
+
+  const nl = lvlOf();
+  if (nl > P.lvl) {
+    P.lvl = nl;
+    P.maxHp = 100 + (nl - 1) * 20;
+    P.maxMp = 50 + (nl - 1) * 10;
+    P.hp = P.maxHp;
+    P.mp = P.maxMp;
+    spawnParticles(P.rx, P.ry, "#ffd700", 20);
+    addChat("Sistema", `Parabéns! Você avançou para o nível ${nl}!`, "#6f6");
+  }
+  pushPlayer();
+  renderUI();
+}
+
+// ===== COLISÃO & ENTRADAS =====
+function occ(a, y) {
+  for (const id in mons) if (!mons[id].dead && mons[id].x === a && mons[id].y === y) return 1;
+  for (const k in others) if (others[k].x === a && others[k].y === y) return 1;
+  if (NPCS.some(n => n.x === a && n.y === y)) return 1;
+  return 0;
+}
+function free(a, y, mon) {
+  if (a < 0 || y < 0 || a >= W || y >= H) return 0;
+  const t = map[y][a];
+  if (solid(t) || (mon && safeT(t))) return 0;
+  if (mon && P.x === a && P.y === y) return 0;
+  return !occ(a, y);
+}
+
+const K = {};
+addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    if (document.activeElement === ci) { send(); ci.blur(); }
+    else if (started) ci.focus();
+    return;
+  }
+  if (document.activeElement === ci || document.activeElement === $("ni")) {
+    if (e.key === "Escape") ci.blur();
+    return;
+  }
+  const k = e.key.toLowerCase();
+  if (k === "1") castHeal();
+  if (k === "2") castWhirl();
+  if (k === "e") interactNearby();
+  if (k === "escape") { closeModal(); P.tgt = null; }
+  K[k] = 1;
+  if (e.key.startsWith("Arrow") || e.key === " ") e.preventDefault();
+});
+addEventListener("keyup", e => delete K[e.key.toLowerCase()]);
+document.querySelectorAll("#pad b").forEach(b => {
+  b.onpointerdown = () => K[b.dataset.k] = 1;
+  b.onpointerup = b.onpointerleave = () => delete K[b.dataset.k];
+});
+
+c.addEventListener("pointerdown", e => {
+  if (!started) return;
+  const r = c.getBoundingClientRect();
+  const tx = Math.floor(((e.clientX - r.left) / r.width * 544 + ox) / T);
+  const ty = Math.floor(((e.clientY - r.top) / r.height * 384 + oy) / T);
+
+  // Clicar em NPC
+  const npc = NPCS.find(n => n.x === tx && n.y === ty);
+  if (npc) {
+    if (Math.hypot(npc.x - P.x, npc.y - P.y) <= 2.5) {
+      if (npc.role === "shop") openShop(npc);
+      else openBoat(npc);
+    } else {
+      addChat("Sistema", "Chegue mais perto para falar com " + npc.name, "#aaa");
+    }
+    return;
+  }
+
+  // Clicar em Monstro
+  for (const id in mons) {
+    const m = mons[id];
+    if (!m.dead && m.x === tx && m.y === ty) {
+      P.tgt = P.tgt === m ? null : m;
+      return;
+    }
+  }
+  P.tgt = null;
+});
+
+// ===== LOGIN =====
+const cols = ["#c33", "#39c", "#3a3", "#c9a", "#e90", "#84d"];
+cols.forEach((k, i) => {
+  const s = document.createElement("span");
+  s.className = "sw" + (i ? "" : " s");
+  s.style.background = k;
+  s.onclick = () => {
+    P.col = k;
+    document.querySelectorAll(".sw").forEach(z => z.classList.remove("s"));
+    s.classList.add("s");
+  };
+  $("sw").append(s);
+});
+$("st").textContent = online ? "● Servidor Online Conectado" : "● Modo Offline Local";
+try { $("ni").value = localStorage.getItem("tn") || ""; } catch (e) {}
+
+$("go").onclick = () => {
+  P.name = $("ni").value.trim().slice(0, 14) || "Aventureiro";
+  try { localStorage.setItem("tn", P.name); } catch (e) {}
+  $("login").classList.remove("open");
+  $("p-name").textContent = P.name;
+  started = true;
+  if (online) netInit();
+  pushPlayer();
+  renderUI();
+  addChat("Sistema", `Bem-vindo a Thais, ${P.name}! Fale com NPCs apertando [E] ou clicando neles.`, "#6f6");
+};
+
+// ===== LOOP DE LÓGICA =====
+let hostSyncTimer = 0;
+function update(dt) {
+  const cl = (a, m) => Math.max(-m, Math.min(m, a));
+  P.rx += cl(P.x - P.rx, 6 * dt);
+  P.ry += cl(P.y - P.ry, 6 * dt);
+  if (P.swing > 0) P.swing -= dt;
+  if (boatAnim > 0) boatAnim -= dt;
+
+  // Movimento do Jogador
+  const dv = K.w || K.arrowup ? [0, -1, 0] : K.s || K.arrowdown ? [0, 1, 2] : K.a || K.arrowleft ? [-1, 0, 3] : K.d || K.arrowright ? [1, 0, 1] : null;
+  if (dv && Math.abs(P.x - P.rx) + Math.abs(P.y - P.ry) < 0.06 && document.activeElement !== ci) {
+    P.dir = dv[2];
+    const nx = P.x + dv[0], ny = P.y + dv[1];
+    if (free(nx, ny)) {
+      P.x = nx; P.y = ny;
+      pushPlayer();
+      updateCityLabel();
+    }
+  }
+
+  // Ataque Automático no Alvo
+  P.cd -= dt;
+  const m = P.tgt;
+  if (m && !m.dead && Math.max(Math.abs(m.x - P.x), Math.abs(m.y - P.y)) <= 9) {
+    if (Math.max(Math.abs(m.x - P.x), Math.abs(m.y - P.y)) <= 1 && P.cd <= 0) {
+      P.cd = 0.95;
+      const baseAtk = getAtk();
+      const dmg = Math.max(1, baseAtk - 2 + ((Math.random() * 6) | 0));
+      damageMonster(m, dmg);
+    }
+  } else if (m && m.dead) {
+    P.tgt = null;
+  }
+
+  // Regeneração Natural
+  P.rg += dt;
+  if (P.rg >= 2.2) {
+    P.rg = 0;
+    if (P.hp < P.maxHp) P.hp = Math.min(P.maxHp, P.hp + 2 + (P.lvl >> 1));
+    if (P.mp < P.maxMp) P.mp = Math.min(P.maxMp, P.mp + 3);
+    renderUI();
+  }
+
+  // IA dos Monstros (Executada pelo Host ou Offline)
+  let dirtyMobs = false;
+  for (const id in mons) {
+    const mon = mons[id], d = MT[mon.t];
+    const vm = visMons[id] || (visMons[id] = { rx: mon.x, ry: mon.y });
+    vm.rx += cl(mon.x - vm.rx, 4 * dt);
+    vm.ry += cl(mon.y - vm.ry, 4 * dt);
+
+    if (mon.dead > 0) {
+      if (!db || isHost) {
+        mon.dead -= dt;
+        if (mon.dead <= 0) {
+          mon.dead = 0; mon.x = mon.sx; mon.y = mon.sy; mon.hp = d.hp;
+          vm.rx = mon.x; vm.ry = mon.y;
+          dirtyMobs = true;
+        }
+      }
+      continue;
+    }
+
+    // Dano do monstro no jogador local se adjacente
+    mon.cd = (mon.cd || 0) - dt;
+    const distSelf = Math.max(Math.abs(P.x - mon.x), Math.abs(P.y - mon.y));
+    const sfSelf = safeT(map[P.y][P.x]);
+    if (distSelf <= 1 && !sfSelf && mon.cd <= 0) {
+      mon.cd = 1.4;
+      const raw = d.d[0] + ((Math.random() * (d.d[1] - d.d[0] + 1)) | 0);
+      const dmg = Math.max(1, raw - getDef());
+      P.hp -= dmg;
+      ft(P.rx, P.ry, "-" + dmg, "#f44");
+      renderUI();
+    }
+
+    // Movimentação do monstro (Apenas Host ou Offline)
+    if (!db || isHost) {
+      mon.mv = (mon.mv || 0) - dt;
+      if (mon.mv <= 0) {
+        mon.mv = 0.55;
+        // Encontrar jogador mais próximo (local ou online)
+        let targetPl = !sfSelf ? { x: P.x, y: P.y } : null;
+        let bestD = targetPl ? distSelf : 99;
+        for (const k in others) {
+          const o = others[k];
+          if (safeT(map[o.y]?.[o.x])) continue;
+          const od = Math.max(Math.abs(o.x - mon.x), Math.abs(o.y - mon.y));
+          if (od < bestD) { bestD = od; targetPl = o; }
+        }
+
+        if (targetPl && bestD <= d.a && bestD > 1) {
+          const dx = targetPl.x - mon.x, dy = targetPl.y - mon.y;
+          const sx = Math.sign(dx), sy = Math.sign(dy);
+          const opts = Math.abs(dx) > Math.abs(dy) ? [[sx, 0], [0, sy]] : [[0, sy], [sx, 0]];
+          for (const [ax, by] of opts) {
+            if ((ax || by) && free(mon.x + ax, mon.y + by, 1)) {
+              mon.x += ax; mon.y += by; dirtyMobs = true; break;
+            }
+          }
+        } else if (Math.random() < 0.25) {
+          const ax = ((Math.random() * 3) | 0) - 1, by = ax ? 0 : ((Math.random() * 3) | 0) - 1;
+          if ((ax || by) && Math.abs(mon.x + ax - mon.sx) < 6 && Math.abs(mon.y + by - mon.sy) < 6 && free(mon.x + ax, mon.y + by, 1)) {
+            mon.x += ax; mon.y += by; dirtyMobs = true;
+          }
+        }
+      }
+    }
+  }
+
+  // Host sincroniza posição e estado dos mobs a cada 0.45s
+  if (db && isHost) {
+    hostSyncTimer += dt;
+    if (hostSyncTimer >= 0.45 && dirtyMobs) {
+      hostSyncTimer = 0;
+      db.ref("world/mobs").update(mons);
+    }
+  }
+
+  // Morte do Jogador
+  if (P.hp <= 0) {
+    P.xp = Math.floor(P.xp * 0.9);
+    P.lvl = lvlOf();
+    P.maxHp = 100 + (P.lvl - 1) * 20;
+    P.hp = P.maxHp;
+    P.x = P.rx = 80; P.y = P.ry = 83;
+    P.tgt = null;
+    addChat("Sistema", "Você morreu e retornou ao templo de Thais (-10% XP).", "#f66");
+    pushPlayer();
+    renderUI();
+  }
+
+  // Interpolação de outros jogadores
+  for (const k in others) {
+    const o = others[k];
+    const v = visOthers[k] || (visOthers[k] = { rx: o.x, ry: o.y });
+    v.rx += cl(o.x - v.rx, 6 * dt);
+    v.ry += cl(o.y - v.ry, 6 * dt);
+  }
+  for (const k in visOthers) if (!others[k]) delete visOthers[k];
+
+  // Textos flutuantes & Partículas
+  for (let i = fts.length - 1; i >= 0; i--) {
+    fts[i].y -= 26 * dt;
+    if ((fts[i].l -= dt) <= 0) fts.splice(i, 1);
+  }
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    p.x += p.vx * dt; p.y
